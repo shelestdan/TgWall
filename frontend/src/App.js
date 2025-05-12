@@ -260,18 +260,20 @@ function App() {
   const [user, setUser] = useState(null);
   const [posts, setPosts] = useState([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const telegram = useTelegram();
-
+  
   useEffect(() => {
     // Get user data from Telegram
-    if (telegram.user) {
+    if (initData.user) {
       setUser({
-        id: telegram.user.id,
-        name: telegram.user.firstName + (telegram.user.lastName ? ` ${telegram.user.lastName}` : ''),
-        username: telegram.user.username,
-        photo_url: telegram.user.photoUrl,
+        id: initData.user.id.toString(),
+        name: initData.user.firstName + (initData.user.lastName ? ` ${initData.user.lastName}` : ''),
+        username: initData.user.username,
+        photo_url: initData.user.photoUrl,
         posts: []
       });
+      
+      // Notify Telegram app ready
+      miniApp.ready();
     } else {
       // Mock user for development
       setUser({
@@ -294,7 +296,7 @@ function App() {
     };
 
     fetchPosts();
-  }, [telegram.user]);
+  }, []);
 
   const handleSavePost = async (post) => {
     try {
