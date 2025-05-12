@@ -10,7 +10,9 @@ class TeleWallAPITester:
         self.tests_run = 0
         self.tests_passed = 0
         self.user_id = None
+        self.second_user_id = None
         self.post_id = None
+        self.gift_id = None
 
     def run_test(self, name, method, endpoint, expected_status, data=None):
         """Run a single API test"""
@@ -81,6 +83,30 @@ class TeleWallAPITester:
         
         return success, response
 
+    def test_create_second_user(self):
+        """Test creating a second user for gift testing"""
+        user_data = {
+            "telegram_id": f"test_user_{uuid.uuid4()}",
+            "username": f"testuser2_{datetime.now().strftime('%H%M%S')}",
+            "name": "Test User 2",
+            "photo_url": "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y",
+            "description": "This is a second test user for API testing"
+        }
+        
+        success, response = self.run_test(
+            "Create Second User",
+            "POST",
+            "api/users",
+            200,
+            data=user_data
+        )
+        
+        if success and 'id' in response:
+            self.second_user_id = response['id']
+            print(f"Created second user with ID: {self.second_user_id}")
+        
+        return success, response
+
     def test_get_user(self):
         """Test getting user by ID"""
         if not self.user_id:
@@ -92,6 +118,27 @@ class TeleWallAPITester:
             "GET",
             f"api/users/{self.user_id}",
             200
+        )
+
+    def test_update_user(self):
+        """Test updating user profile"""
+        if not self.user_id:
+            print("❌ Cannot test update_user: No user ID available")
+            return False, {}
+        
+        update_data = {
+            "telegram_id": f"test_user_{uuid.uuid4()}",
+            "username": f"updated_user_{datetime.now().strftime('%H%M%S')}",
+            "name": "Updated Test User",
+            "description": "This user profile has been updated"
+        }
+        
+        return self.run_test(
+            "Update User",
+            "PUT",
+            f"api/users/{self.user_id}",
+            200,
+            data=update_data
         )
 
     def test_create_text_post(self):
@@ -165,6 +212,46 @@ class TeleWallAPITester:
             200
         )
 
+    def test_create_gift(self):
+        """Test creating a gift"""
+        if not self.user_id or not self.second_user_id:
+            print("❌ Cannot test create_gift: Need both sender and receiver user IDs")
+            return False, {}
+        
+        gift_data = {
+            "type": "flower",
+            "message": "Test gift message",
+            "sender_id": self.user_id,
+            "receiver_id": self.second_user_id
+        }
+        
+        success, response = self.run_test(
+            "Create Gift",
+            "POST",
+            "api/gifts",
+            200,
+            data=gift_data
+        )
+        
+        if success and 'id' in response:
+            self.gift_id = response['id']
+            print(f"Created gift with ID: {self.gift_id}")
+        
+        return success, response
+
+    def test_get_user_gifts(self):
+        """Test getting gifts for a specific user"""
+        if not self.second_user_id:
+            print("❌ Cannot test get_user_gifts: No receiver user ID available")
+            return False, {}
+        
+        return self.run_test(
+            "Get User Gifts",
+            "GET",
+            f"api/users/{self.second_user_id}/gifts",
+            200
+        )
+
 def main():
     # Get the backend URL from the frontend .env file
     backend_url = "https://981e101c-e872-4257-a712-e03c51d76d97.preview.emergentagent.com"
@@ -178,10 +265,14 @@ def main():
     tester.test_api_root()
     tester.test_create_user()
     tester.test_get_user()
+    tester.test_update_user()
+    tester.test_create_second_user()
     tester.test_create_text_post()
     tester.test_create_drawing_post()
     tester.test_get_posts()
     tester.test_get_user_posts()
+    tester.test_create_gift()
+    tester.test_get_user_gifts()
     
     # Print results
     print(f"\n📊 Tests passed: {tester.tests_passed}/{tester.tests_run}")
