@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import "./App.css";
 import axios from "axios";
-import { useTelegram } from "@telegram-apps/sdk-react";
+import { initData, miniApp } from "@telegram-apps/sdk-react";
 import CanvasDraw from "react-canvas-draw";
 
 // Constants
