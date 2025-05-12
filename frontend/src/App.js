@@ -1,14 +1,15 @@
 
 import { useState, useEffect } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
 import "./App.css";
 import axios from "axios";
-import { initData, miniApp } from "@telegram-apps/sdk-react";
 import CanvasDraw from "react-canvas-draw";
 
 // Constants
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
+
+// Initialize Telegram Mini App
+let tg = window.Telegram?.WebApp;
 
 // Components
 const UserProfile = ({ user }) => {
@@ -85,9 +86,6 @@ const UserProfile = ({ user }) => {
                     <h3 className="font-bold">{user?.name || "User Name"}</h3>
                     <p className="text-xs text-gray-400">25.04.2025, 20:39:51</p>
                   </div>
-                  {post?.type === 'drawing' && (
-                    <span className="ml-auto text-gray-400">Рисунок</span>
-                  )}
                 </div>
                 <div className="mt-3 bg-white rounded-lg overflow-hidden">
                   <div className="w-full h-48 flex items-center justify-center text-black">
@@ -103,13 +101,6 @@ const UserProfile = ({ user }) => {
           </div>
         )}
       </div>
-
-      {/* Create Post Button */}
-      <button className="fixed bottom-20 right-4 bg-yellow-400 text-black rounded-full p-3 shadow-lg">
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-        </svg>
-      </button>
 
       {/* Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 bg-gray-900 p-3 flex justify-around">
@@ -262,20 +253,32 @@ function App() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   
   useEffect(() => {
-    // Get user data from Telegram
-    if (initData.user) {
-      setUser({
-        id: initData.user.id.toString(),
-        name: initData.user.firstName + (initData.user.lastName ? ` ${initData.user.lastName}` : ''),
-        username: initData.user.username,
-        photo_url: initData.user.photoUrl,
-        posts: []
-      });
+    // Initialize Telegram Mini App if available
+    if (tg) {
+      tg.ready();
       
-      // Notify Telegram app ready
-      miniApp.ready();
+      // Get user data from Telegram
+      if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+        const telegramUser = tg.initDataUnsafe.user;
+        setUser({
+          id: telegramUser.id.toString(),
+          name: `${telegramUser.first_name} ${telegramUser.last_name || ''}`.trim(),
+          username: telegramUser.username,
+          photo_url: telegramUser.photo_url,
+          posts: []
+        });
+      } else {
+        // Mock user for development
+        setUser({
+          id: '12345',
+          name: 'Daniil Shelesteev',
+          username: 'marnitic',
+          photo_url: 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y',
+          posts: []
+        });
+      }
     } else {
-      // Mock user for development
+      // Mock user for development when not in Telegram
       setUser({
         id: '12345',
         name: 'Daniil Shelesteev',
