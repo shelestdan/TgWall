@@ -189,18 +189,68 @@ async def create_gift(gift: GiftCreate):
     await db.gifts.insert_one(gift_obj.dict())
     return gift_obj
 
-@api_router.get("/users/{user_id}/gifts", response_model=List[Gift])
-async def get_user_gifts(user_id: str, limit: int = 20, offset: int = 0):
-    user = await db.users.find_one({"id": user_id})
-    if not user:
-        user = await db.users.find_one({"telegram_id": user_id})
+@api_router.post("/posts/{post_id}/like", response_model=Post)
+async def like_post(post_id: str):
+    """Like a post"""
+    post = await db.posts.find_one({"id": post_id})
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
     
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    # Increment likes count
+    post["likes"] = post.get("likes", 0) + 1
+    post["updated_at"] = datetime.utcnow()
     
-    user_obj = UserProfile(**user)
-    gifts = await db.gifts.find({"receiver_id": user_obj.id}).sort("created_at", -1).skip(offset).limit(limit).to_list(limit)
-    return [Gift(**gift) for gift in gifts]
+    await db.posts.update_one({"id": post_id}, {"$set": post})
+    
+    updated_post = await db.posts.find_one({"id": post_id})
+    return Post(**updated_post)
+
+@api_router.post("/posts/{post_id}/unlike", response_model=Post)
+async def unlike_post(post_id: str):
+    """Unlike a post"""
+    post = await db.posts.find_one({"id": post_id})
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    
+    # Decrement likes count, but not below 0
+    post["likes"] = max(0, post.get("likes", 0) - 1)
+    post["updated_at"] = datetime.utcnow()
+    
+    await db.posts.update_one({"id": post_id}, {"$set": post})
+    
+    updated_post = await db.posts.find_one({"id": post_id})
+    return Post(**updated_post)
+
+class CommentCreate(BaseModel):
+    content: str
+    user_id: str
+
+@api_router.post("/posts/{post_id}/comments", response_model=Post)
+async def add_comment(post_id: str, comment: CommentCreate):
+    """Add a comment to a post"""
+    post = await db.posts.find_one({"id": post_id})
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    
+    # Create comment object
+    comment_obj = {
+        "id": str(uuid.uuid4()),
+        "content": comment.content,
+        "user_id": comment.user_id,
+        "created_at": datetime.utcnow().isoformat()
+    }
+    
+    # Add comment to post
+    if "comments" not in post:
+        post["comments"] = []
+    
+    post["comments"].append(comment_obj)
+    post["updated_at"] = datetime.utcnow()
+    
+    await db.posts.update_one({"id": post_id}, {"$set": post})
+    
+    updated_post = await db.posts.find_one({"id": post_id})
+    return Post(**updated_post)
 
 # Include the router in the main app
 app.include_router(api_router)
